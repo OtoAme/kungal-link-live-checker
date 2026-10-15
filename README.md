@@ -123,10 +123,10 @@ curl -s -X POST localhost:6734/v1/check \
 
 ## 部署
 
-CI/CD 对齐 `nextmoe-infra`:push `main` → GitHub Actions 测试 + 构建单二进制镜像推 GHCR(`:latest` + `:<sha>`)→ 触发 Dokploy webhook 拉取重部署。镜像 distroless(~17MB),自带 `healthcheck` 子命令。**出口 IP 须与 OAuth/身份服务隔离**(网盘封 IP 不得波及登录)。详见 [`docs/DEPLOY.md`](docs/DEPLOY.md)。
+push `main` → GitHub Actions 测试 → 构建 Linux / macOS / Windows 的 amd64 和 arm64 二进制 → 在本仓库创建 GitHub 预发布并上传压缩包,保留历史版本。下载所需平台的产物后运行服务。**出口 IP 须与 OAuth/身份服务隔离**(网盘封 IP 不得波及登录)。详见 [`docs/DEPLOY.md`](docs/DEPLOY.md)。
 
 ```bash
-docker compose up --build    # 本地;生产用 docker-compose.prod.yml(GHCR 镜像)
+docker compose up --build
 ```
 
 ## 名字
