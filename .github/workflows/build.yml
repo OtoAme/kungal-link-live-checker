@@ -1,6 +1,5 @@
-# Test → build image → push to GHCR → trigger a Dokploy redeploy.
+# Test → build binaries and image → push to GHCR → trigger a Dokploy redeploy.
 # Mirrors nextmoe-infra's build.yml (see that repo's docs/deploy/13-registry-ci.md).
-# Single binary, so a single image (no build matrix).
 name: build-and-push
 
 on:
@@ -32,6 +31,47 @@ jobs:
           fi
       - run: go vet ./...
       - run: go test -race ./...
+
+  binaries:
+    name: Binary (${{ matrix.goos }}/${{ matrix.goarch }})
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        goos: [linux, darwin, windows]
+        goarch: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Build and package binary
+        env:
+          CGO_ENABLED: "0"
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          mkdir -p bin dist
+          binary=llc
+          if [ "$GOOS" = windows ]; then
+            binary=llc.exe
+          fi
+          go build -trimpath -ldflags="-s -w" -o "bin/$binary" ./cmd/server
+          if [ "$GOOS" = windows ]; then
+            zip -j "dist/llc-${GOOS}-${GOARCH}.zip" "bin/$binary"
+          else
+            tar -czf "dist/llc-${GOOS}-${GOARCH}.tar.gz" -C bin "$binary"
+          fi
+      - name: Upload binary
+        uses: actions/upload-artifact@v7
+        with:
+          path: dist/*
+          archive: false
+          if-no-files-found: error
 
   build:
     needs: test
